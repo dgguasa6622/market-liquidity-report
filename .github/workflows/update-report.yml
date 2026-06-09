@@ -2,20 +2,25 @@ name: Update Market Liquidity Report
 
 on:
   schedule:
-    # 每天北京时间上午10:00执行（UTC 02:00），仅工作日
     - cron: '0 2 * * 1-5'
   workflow_dispatch:
-    # 支持手动触发
 
 permissions:
   contents: write
   pages: write
   id-token: write
 
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   update-report:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
 
     steps:
       - name: Checkout repository
@@ -57,13 +62,20 @@ jobs:
           git commit -m "📊 更新市场流动性报告 - $today" || echo "No changes to commit"
           git push
 
+      - name: Setup Pages
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: steps.check_changes.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./docs
+
       - name: Deploy to GitHub Pages
         if: steps.check_changes.outputs.changed == 'true'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          keep_files: true
+        id: deploy
+        uses: actions/deploy-pages@v4
 
       - name: Summary notification
         if: steps.check_changes.outputs.changed == 'true'
@@ -75,4 +87,5 @@ jobs:
           echo "✅ 数据抓取完成" >> $GITHUB_STEP_SUMMARY
           echo "✅ 报告已提交到仓库" >> $GITHUB_STEP_SUMMARY
           echo "✅ 已部署到 GitHub Pages" >> $GITHUB_STEP_SUMMARY
-
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [查看报告](${{ steps.deploy.outputs.page_url }})" >> $GITHUB_STEP_SUMMARY
