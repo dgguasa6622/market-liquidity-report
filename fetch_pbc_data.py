@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-中国人民银行公开市场业务数据抓取 & HTML报告生成
+中国人民银行公开市场业务数据抓取 & HTML报告生成 & 邮件推送
 适用于 GitHub Actions 自动化运行
 """
 
@@ -12,6 +12,11 @@ import json
 from datetime import datetime, timedelta
 import os
 import sys
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 # ===== 配置 =====
 HEADERS = {
@@ -22,6 +27,13 @@ HEADERS = {
 
 TODAY = datetime.now().strftime('%Y-%m-%d')
 TODAY_DT = datetime.now()
+
+# 邮件配置（从环境变量读取）
+SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.qq.com')
+SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_USER = os.environ.get('SMTP_USER', '')
+SMTP_PASS = os.environ.get('SMTP_PASS', '')
+EMAIL_TO = os.environ.get('EMAIL_TO', '')
 
 def fetch_page(url, timeout=30):
     """获取页面内容"""
@@ -51,7 +63,6 @@ def scrape_reverse_repo():
     
     all_records = []
     
-    # 遍历前3页（约60条记录，覆盖2个月）
     for page in range(1, 4):
         if page == 1:
             url = f"{base_url}/index.html"
@@ -80,13 +91,11 @@ def scrape_reverse_repo():
             if date < cutoff:
                 continue
             
-            # 构造完整URL
             if href.startswith('http'):
                 detail_url = href
             else:
                 detail_url = f"https://www.pbc.gov.cn{href}"
             
-            # 抓取详情
             detail_html = fetch_page(detail_url)
             if not detail_html:
                 continue
@@ -94,18 +103,15 @@ def scrape_reverse_repo():
             detail_soup = BeautifulSoup(detail_html, 'html.parser')
             text = detail_soup.get_text()
             
-            # 提取日期
             date_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', text)
             op_date = date
             if date_match:
                 op_date = f"{date_match.group(1)}-{date_match.group(2).zfill(2)}-{date_match.group(3).zfill(2)}"
             
-            # 提取表格数据
             amount = 0
             term = '7天'
             rate = '1.40%'
             
-            # 查找主表格
             content_div = detail_soup.find('div', id='zoom') or detail_soup.find('div', class_='content') or detail_soup
             tables = content_div.find_all('table')
             
@@ -123,14 +129,12 @@ def scrape_reverse_repo():
                                     amount = parse_number(t)
                             break
             
-            # 备用：从文本提取
             if amount == 0:
                 m = re.search(r'开展了([\d,]+\.?\d*)亿元(\d+)天期逆回购操作', text)
                 if m:
                     amount = parse_number(m.group(1))
                     term = f"{m.group(2)}天"
             
-            # 计算到期日
             term_days = 7
             if '14' in term:
                 term_days = 14
@@ -149,7 +153,6 @@ def scrape_reverse_repo():
                 'maturity': maturity,
             })
     
-    # 去重并按日期排序
     seen = set()
     unique = []
     for r in sorted(all_records, key=lambda x: x['date'], reverse=True):
@@ -209,18 +212,15 @@ def scrape_bona_fide_repo():
             detail_soup = BeautifulSoup(detail_html, 'html.parser')
             text = detail_soup.get_text()
             
-            # 提取操作信息
             date_match = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', text)
             op_date = date
             if date_match:
                 op_date = f"{date_match.group(1)}-{date_match.group(2).zfill(2)}-{date_match.group(3).zfill(2)}"
             
-            # 提取金额和期限
             amount = 0
             term = ''
             maturity_date = ''
             
-            # 从表格提取
             content_div = detail_soup.find('div', id='zoom') or detail_soup.find('div', class_='content') or detail_soup
             tables = content_div.find_all('table')
             
@@ -237,7 +237,6 @@ def scrape_bona_fide_repo():
                             if '亿元' in t and re.search(r'\d+', t):
                                 amount = parse_number(t)
             
-            # 备用文本提取
             if amount == 0:
                 m = re.search(r'([\d,]+)\s*亿元', text)
                 if m:
@@ -248,14 +247,12 @@ def scrape_bona_fide_repo():
                 if tm:
                     term = tm.group(1)
             
-            # 提取到期日
             mat_m = re.search(r'到期日[期为：]*\s*(\d{4}年\d{1,2}月\d{1,2}日)', text)
             if mat_m:
                 ds = re.search(r'(\d{4})年(\d{1,2})月(\d{1,2})日', mat_m.group(1))
                 if ds:
                     maturity_date = f"{ds.group(1)}-{ds.group(2).zfill(2)}-{ds.group(3).zfill(2)}"
             
-            # 如果没有到期日，从期限推算
             if not maturity_date and term:
                 days_m = re.search(r'(\d+)', term)
                 if days_m:
@@ -275,7 +272,6 @@ def scrape_bona_fide_repo():
                 'maturity': maturity_date,
             })
     
-    # 去重
     seen = set()
     unique = []
     for r in sorted(all_records, key=lambda x: x['date'], reverse=True):
@@ -344,7 +340,6 @@ def scrape_mlf():
             rate = ''
             term = '1年'
             
-            # 从表格提取
             content_div = detail_soup.find('div', id='zoom') or detail_soup.find('div', class_='content') or detail_soup
             tables = content_div.find_all('table')
             
@@ -362,7 +357,6 @@ def scrape_mlf():
                             if '%' in t and re.search(r'\d+\.?\d*%', t):
                                 rate = t.strip()
             
-            # 备用文本提取
             if amount == 0:
                 m = re.search(r'([\d,]+)\s*亿元', text)
                 if m:
@@ -375,7 +369,6 @@ def scrape_mlf():
                 elif '多重价位' in text:
                     rate = '多重价位'
             
-            # 到期日（1年期）
             try:
                 op_dt = datetime.strptime(op_date, '%Y-%m-%d')
                 maturity_date = (op_dt + timedelta(days=365)).strftime('%Y-%m-%d')
@@ -390,7 +383,6 @@ def scrape_mlf():
                 'maturity': maturity_date,
             })
     
-    # 去重
     seen = set()
     unique = []
     for r in sorted(all_records, key=lambda x: x['date'], reverse=True):
@@ -418,7 +410,6 @@ def calc_stats(records, today_str):
                 matured += r['amount']
             else:
                 outstanding += r['amount']
-                # 14天内到期
                 try:
                     mat_dt = datetime.strptime(mat, '%Y-%m-%d')
                     diff = (mat_dt - TODAY_DT).days
@@ -465,31 +456,240 @@ def format_amount(n):
         return f"{int(n):,}"
     return f"{n:,.1f}"
 
-# ===== 图表数据准备 =====
-def prepare_chart_data(records, chart_type='repo'):
-    """准备图表所需的数据"""
-    # 按日期排序（正序，从早到晚）
-    sorted_records = sorted(records, key=lambda x: x['date'])
+# ===== 历史数据管理 =====
+def load_history(output_dir):
+    """加载历史数据"""
+    history_path = os.path.join(output_dir, 'history.json')
+    if os.path.exists(history_path):
+        try:
+            with open(history_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def save_history(output_dir, today_data):
+    """保存历史数据"""
+    history_path = os.path.join(output_dir, 'history.json')
+    history = load_history(output_dir)
+    history[TODAY] = today_data
     
+    # 只保留最近30天的数据
+    cutoff = (TODAY_DT - timedelta(days=30)).strftime('%Y-%m-%d')
+    history = {k: v for k, v in history.items() if k >= cutoff}
+    
+    with open(history_path, 'w', encoding='utf-8') as f:
+        json.dump(history, f, ensure_ascii=False, indent=2)
+    
+    return history
+
+def calc_change(current, previous):
+    """计算变化量和变化百分比"""
+    if previous == 0:
+        return current, 0
+    change = current - previous
+    pct = (change / previous) * 100
+    return change, pct
+
+def generate_change_text(current_stats, history):
+    """生成变化描述文字"""
+    yesterday = (TODAY_DT - timedelta(days=1)).strftime('%Y-%m-%d')
+    
+    if yesterday not in history:
+        return "📊 今日市场流动性数据已更新（暂无昨日数据对比）\n"
+    
+    prev = history[yesterday]
+    text = f"📊 {TODAY} 市场流动性数据更新\n\n"
+    
+    # 7天逆回购
+    curr_net = current_stats['repo']['net']
+    prev_net = prev.get('repo_net', 0)
+    change, pct = calc_change(curr_net, prev_net)
+    
+    if change > 0:
+        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
+    elif change < 0:
+        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
+    else:
+        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（与昨日持平）\n"
+    
+    # 买断式逆回购
+    curr_out = current_stats['bona']['outstanding']
+    prev_out = prev.get('bona_outstanding', 0)
+    change, pct = calc_change(curr_out, prev_out)
+    
+    if change > 0:
+        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
+    elif change < 0:
+        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
+    else:
+        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（与昨日持平）\n"
+    
+    # MLF
+    curr_mlf = current_stats['mlf']['net']
+    prev_mlf = prev.get('mlf_net', 0)
+    change, pct = calc_change(curr_mlf, prev_mlf)
+    
+    if change > 0:
+        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
+    elif change < 0:
+        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
+    else:
+        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（与昨日持平）\n"
+    
+    text += f"\n📈 详细报告：https://dgguasa6622.github.io/market-liquidity-report/\n"
+    return text
+
+# ===== 生成汇总卡片HTML（用于截图） =====
+def generate_summary_card_html(repo_stats, bona_stats, mlf_stats):
+    """生成汇总卡片HTML（用于截图发送邮件）"""
+    html = f'''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            width: 900px;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            border-radius: 15px 15px 0 0;
+        }}
+        .header h1 {{ font-size: 28px; margin-bottom: 8px; }}
+        .header .date {{ font-size: 16px; opacity: 0.9; }}
+        .cards {{
+            display: flex;
+            gap: 20px;
+            padding: 25px;
+            background: white;
+            border-radius: 0 0 15px 15px;
+        }}
+        .card {{
+            flex: 1;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border-left: 4px solid #2a5298;
+        }}
+        .card h3 {{ color: #1e3c72; font-size: 16px; margin-bottom: 12px; }}
+        .card .amount {{ font-size: 36px; font-weight: 700; color: #2a5298; margin: 10px 0; }}
+        .card .unit {{ font-size: 13px; color: #666; }}
+        .card .detail {{ margin-top: 12px; font-size: 12px; color: #555; line-height: 1.6; }}
+        .footer {{
+            text-align: center;
+            padding: 15px;
+            color: white;
+            font-size: 12px;
+            opacity: 0.8;
+        }}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>市场流动性日报</h1>
+        <div class="date">{TODAY} | 中国人民银行公开市场业务</div>
+    </div>
+    <div class="cards">
+        <div class="card">
+            <h3>7天逆回购净投放量</h3>
+            <div class="amount">{format_amount(repo_stats['net'])}</div>
+            <div class="unit">亿元（近2个月）</div>
+            <div class="detail">
+                总投放：{format_amount(repo_stats['total_issue'])}亿<br>
+                总到期：{format_amount(repo_stats['matured'])}亿
+            </div>
+        </div>
+        <div class="card">
+            <h3>买断式逆回购存续量</h3>
+            <div class="amount">{format_amount(bona_stats['outstanding'])}</div>
+            <div class="unit">亿元（当前存续）</div>
+            <div class="detail">
+                总投放：{format_amount(bona_stats['total_issue'])}亿<br>
+                已到期：{format_amount(bona_stats['matured'])}亿
+            </div>
+        </div>
+        <div class="card">
+            <h3>MLF净投放量</h3>
+            <div class="amount">{format_amount(mlf_stats['net'])}</div>
+            <div class="unit">亿元（近24个月）</div>
+            <div class="detail">
+                总投放：{format_amount(mlf_stats['total_issue'])}亿<br>
+                总到期：{format_amount(mlf_stats['matured'])}亿
+            </div>
+        </div>
+    </div>
+    <div class="footer">数据来源：中国人民银行官网 | 自动生成</div>
+</body>
+</html>'''
+    return html
+
+# ===== 发送邮件 =====
+def send_email(subject, body, image_path=None):
+    """发送邮件"""
+    if not all([SMTP_USER, SMTP_PASS, EMAIL_TO]):
+        print("[WARN] 邮件配置不完整，跳过发送邮件")
+        return False
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_USER
+        msg['To'] = EMAIL_TO
+        msg['Subject'] = subject
+        
+        # 添加文字内容
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # 添加图片附件
+        if image_path and os.path.exists(image_path):
+            with open(image_path, 'rb') as f:
+                attachment = MIMEBase('application', 'octet-stream')
+                attachment.set_payload(f.read())
+            encoders.encode_base64(attachment)
+            attachment.add_header(
+                'Content-Disposition',
+                f'attachment; filename= "{os.path.basename(image_path)}"'
+            )
+            msg.attach(attachment)
+        
+        # 发送
+        server = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        server.starttls()
+        server.login(SMTP_USER, SMTP_PASS)
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"[INFO] 邮件发送成功: {EMAIL_TO}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] 邮件发送失败: {e}")
+        return False
+
+# ===== 图表数据准备 =====
+def prepare_chart_data(records):
+    """准备图表所需的数据"""
+    sorted_records = sorted(records, key=lambda x: x['date'])
     dates = []
     amounts = []
-    
     for r in sorted_records:
         dates.append(r['date'])
         amounts.append(r['amount'])
-    
     return dates, amounts
 
 def prepare_bona_chart_data(records, today_str):
     """准备买断式逆回购图表数据（累计存续量）"""
     sorted_records = sorted(records, key=lambda x: x['date'])
-    
     dates = []
     outstanding = []
-    
     for r in sorted_records:
         dates.append(r['date'])
-        # 计算该日期为止的累计存续量
         cum = 0
         for rec in records:
             if rec['date'] <= r['date']:
@@ -497,21 +697,17 @@ def prepare_bona_chart_data(records, today_str):
                 if not mat or mat > r['date']:
                     cum += rec['amount']
         outstanding.append(cum)
-    
     return dates, outstanding
 
 def prepare_net_chart_data(records, today_str):
     """准备净投放量图表数据"""
     sorted_records = sorted(records, key=lambda x: x['date'])
-    
     dates = []
     net_values = []
-    
     running_total = 0
     for r in sorted_records:
         dates.append(r['date'])
         running_total += r['amount']
-        # 减去已到期
         matured = 0
         for rec in records:
             if rec['date'] <= r['date']:
@@ -519,7 +715,6 @@ def prepare_net_chart_data(records, today_str):
                 if mat and mat <= r['date']:
                     matured += rec['amount']
         net_values.append(running_total - matured)
-    
     return dates, net_values
 
 # ===== 生成HTML =====
@@ -531,14 +726,12 @@ def generate_html(repo_records, bona_records, mlf_records):
     bona_stats = calc_stats(bona_records, today_str)
     mlf_stats = calc_stats(mlf_records, today_str)
     
-    # 准备图表数据
     repo_dates, repo_amounts = prepare_chart_data(repo_records)
     bona_dates, bona_amounts = prepare_chart_data(bona_records)
     bona_dates, bona_outstanding = prepare_bona_chart_data(bona_records, today_str)
     mlf_dates, mlf_amounts = prepare_chart_data(mlf_records)
     mlf_dates, mlf_net = prepare_net_chart_data(mlf_records, today_str)
     
-    # 构建逆回购表格行
     repo_rows = ''
     for i, r in enumerate(repo_records, 1):
         status, badge = get_status(r['maturity'], today_str)
@@ -555,7 +748,6 @@ def generate_html(repo_records, bona_records, mlf_records):
             <td><span class="badge {badge}">{status}</span></td>
         </tr>\n'''
     
-    # 构建买断式逆回购表格行
     bona_rows = ''
     for i, r in enumerate(bona_records, 1):
         status, badge = get_status(r['maturity'], today_str)
@@ -569,7 +761,6 @@ def generate_html(repo_records, bona_records, mlf_records):
             <td><span class="badge {badge}">{status}</span></td>
         </tr>\n'''
     
-    # 构建MLF表格行
     mlf_rows = ''
     for i, r in enumerate(mlf_records, 1):
         status, badge = get_status(r['maturity'], today_str)
@@ -584,7 +775,6 @@ def generate_html(repo_records, bona_records, mlf_records):
             <td><span class="badge {badge}">{status}</span></td>
         </tr>\n'''
     
-    # 图表数据JSON
     repo_dates_json = json.dumps(repo_dates, ensure_ascii=False)
     repo_amounts_json = json.dumps(repo_amounts, ensure_ascii=False)
     bona_dates_json = json.dumps(bona_dates, ensure_ascii=False)
@@ -649,9 +839,6 @@ def generate_html(repo_records, bona_records, mlf_records):
             background: #fafbfc; border-radius: 15px; padding: 15px;
             box-shadow: 0 2px 15px rgba(0,0,0,0.08);
         }}
-        .chart-title {{
-            font-size: 1.1em; color: #1e3c72; font-weight: 600; margin-bottom: 10px; text-align: center;
-        }}
         .data-table {{
             width: 100%; border-collapse: collapse; margin-top: 20px; background: white;
             border-radius: 10px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);
@@ -691,7 +878,6 @@ def generate_html(repo_records, bona_records, mlf_records):
             background: #1e3c72; color: white; text-align: center; padding: 30px; font-size: 0.9em;
         }}
         .footer a {{ color: #a8d8ff; text-decoration: none; }}
-        .update-info {{ text-align: center; margin-top: 10px; color: #999; font-size: 0.85em; }}
         @media (max-width: 768px) {{
             .header h1 {{ font-size: 1.8em; }}
             .content {{ padding: 20px; }}
@@ -803,7 +989,6 @@ def generate_html(repo_records, bona_records, mlf_records):
     </div>
     
     <script>
-        // 图表1: 7天逆回购净投放量
         var repoChart = echarts.init(document.getElementById('repoChart'));
         var repoOption = {{
             title: {{ text: '7天/14天逆回购操作量变化趋势', left: 'center', textStyle: {{ color: '#1e3c72', fontSize: 16 }} }},
@@ -842,7 +1027,6 @@ def generate_html(repo_records, bona_records, mlf_records):
         }};
         repoChart.setOption(repoOption);
         
-        // 图表2: 买断式逆回购存续量
         var bonaChart = echarts.init(document.getElementById('bonaChart'));
         var bonaOption = {{
             title: {{ text: '买断式逆回购累计存续量变化趋势', left: 'center', textStyle: {{ color: '#1e3c72', fontSize: 16 }} }},
@@ -873,7 +1057,6 @@ def generate_html(repo_records, bona_records, mlf_records):
         }};
         bonaChart.setOption(bonaOption);
         
-        // 图表3: MLF净投放量
         var mlfChart = echarts.init(document.getElementById('mlfChart'));
         var mlfOption = {{
             title: {{ text: 'MLF净投放量变化趋势', left: 'center', textStyle: {{ color: '#1e3c72', fontSize: 16 }} }},
@@ -904,7 +1087,6 @@ def generate_html(repo_records, bona_records, mlf_records):
         }};
         mlfChart.setOption(mlfOption);
         
-        // 响应式
         window.addEventListener('resize', function() {{
             repoChart.resize();
             bonaChart.resize();
@@ -920,26 +1102,58 @@ def main():
     print(f"=== 市场流动性统计报告生成 ===")
     print(f"统计日期: {TODAY}")
     
+    output_dir = os.environ.get('OUTPUT_DIR', 'docs')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # 加载历史数据
+    history = load_history(output_dir)
+    
     # 1. 抓取数据
     repo_records = scrape_reverse_repo()
     bona_records = scrape_bona_fide_repo()
     mlf_records = scrape_mlf()
     
-    # 2. 生成HTML
+    # 2. 计算统计
+    repo_stats = calc_stats(repo_records, TODAY)
+    bona_stats = calc_stats(bona_records, TODAY)
+    mlf_stats = calc_stats(mlf_records, TODAY)
+    
+    current_stats = {
+        'repo': repo_stats,
+        'bona': bona_stats,
+        'mlf': mlf_stats,
+    }
+    
+    # 3. 保存历史数据
+    today_data = {
+        'repo_net': repo_stats['net'],
+        'bona_outstanding': bona_stats['outstanding'],
+        'mlf_net': mlf_stats['net'],
+    }
+    history = save_history(output_dir, today_data)
+    
+    # 4. 生成变化描述
+    change_text = generate_change_text(current_stats, history)
+    print("\n变化描述：")
+    print(change_text)
+    
+    # 5. 生成汇总卡片HTML
+    summary_html = generate_summary_card_html(repo_stats, bona_stats, mlf_stats)
+    summary_path = os.path.join(output_dir, 'summary.html')
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        f.write(summary_html)
+    
+    # 6. 生成完整HTML报告
     print("\n生成HTML报告...")
     html = generate_html(repo_records, bona_records, mlf_records)
     
-    # 3. 保存
-    output_dir = os.environ.get('OUTPUT_DIR', 'docs')
-    os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'index.html')
-    
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(html)
     
-    print(f"\n报告已保存到: {output_path}")
+    print(f"报告已保存到: {output_path}")
     
-    # 4. 保存JSON数据（用于调试）
+    # 7. 保存JSON数据
     data = {
         'date': TODAY,
         'reverse_repo': repo_records,
@@ -951,7 +1165,36 @@ def main():
         json.dump(data, f, ensure_ascii=False, indent=2)
     
     print(f"原始数据已保存到: {data_path}")
-    print("完成！")
+    
+    # 8. 生成图片（如果安装了playwright）
+    image_path = None
+    try:
+        from playwright.sync_api import sync_playwright
+        print("\n生成报告图片...")
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page(viewport={'width': 900, 'height': 600})
+            page.goto(f'file://{os.path.abspath(summary_path)}')
+            page.wait_for_timeout(1000)
+            image_path = os.path.join(output_dir, 'summary.png')
+            page.screenshot(path=image_path, full_page=True)
+            browser.close()
+        print(f"图片已保存到: {image_path}")
+    except ImportError:
+        print("[WARN] 未安装 playwright，跳过图片生成")
+    except Exception as e:
+        print(f"[WARN] 图片生成失败: {e}")
+    
+    # 9. 发送邮件
+    if SMTP_USER and SMTP_PASS and EMAIL_TO:
+        print("\n发送邮件通知...")
+        subject = f"📊 市场流动性日报 - {TODAY}"
+        send_email(subject, change_text, image_path)
+    else:
+        print("[INFO] 邮件配置不完整，跳过发送邮件")
+        print("如需发送邮件，请设置环境变量: SMTP_USER, SMTP_PASS, EMAIL_TO")
+    
+    print("\n完成！")
 
 if __name__ == '__main__':
     main()
