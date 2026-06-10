@@ -550,7 +550,7 @@ def generate_summary_card_html(repo_stats, bona_stats, mlf_stats):
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+            font-family: 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'Microsoft YaHei', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: 30px;
             width: 900px;
