@@ -33,6 +33,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk fonts-wqy-microhei
           python -m pip install --upgrade pip
           pip install requests beautifulsoup4 playwright
           python -m playwright install chromium
