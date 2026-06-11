@@ -30,7 +30,7 @@ TODAY_DT = datetime.now()
 
 # 邮件配置（从环境变量读取）
 SMTP_HOST = os.environ.get('SMTP_HOST', 'smtp.qq.com')
-SMTP_PORT = int(os.environ.get('SMTP_PORT', '587'))
+SMTP_PORT = int(os.environ.get('SMTP_PORT') or '587')
 SMTP_USER = os.environ.get('SMTP_USER', '')
 SMTP_PASS = os.environ.get('SMTP_PASS', '')
 EMAIL_TO = os.environ.get('EMAIL_TO', '')
@@ -492,52 +492,82 @@ def calc_change(current, previous):
     return change, pct
 
 def generate_change_text(current_stats, history):
-    """生成变化描述文字"""
+    """生成变化描述文字（邮件正文）"""
     yesterday = (TODAY_DT - timedelta(days=1)).strftime('%Y-%m-%d')
     
-    if yesterday not in history:
-        return "📊 今日市场流动性数据已更新（暂无昨日数据对比）\n"
+    repo = current_stats['repo']
+    bona = current_stats['bona']
+    mlf = current_stats['mlf']
     
-    prev = history[yesterday]
-    text = f"📊 {TODAY} 市场流动性数据更新\n\n"
+    # 邮件标题和头部
+    text = f"""📊 市场流动性日报 - {TODAY}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【附件图片说明】
+图片展示了今日三项核心指标的汇总数据卡片，
+分别为7天逆回购净投放量、买断式逆回购存续量和MLF净投放量。
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+【一、7天/14天逆回购（近2个月）】
+  净投放量：{format_amount(repo['net'])} 亿元
+  总投放量：{format_amount(repo['total_issue'])} 亿元
+  总到期量：{format_amount(repo['matured'])} 亿元"""
+
+    if yesterday in history:
+        prev = history[yesterday]
+        change, pct = calc_change(repo['net'], prev.get('repo_net', 0))
+        if change > 0:
+            text += f"\n  较昨日：增加 {format_amount(abs(change))} 亿元（+{pct:.1f}%）"
+        elif change < 0:
+            text += f"\n  较昨日：减少 {format_amount(abs(change))} 亿元（{pct:.1f}%）"
+        else:
+            text += "\n  较昨日：持平"
     
-    # 7天逆回购
-    curr_net = current_stats['repo']['net']
-    prev_net = prev.get('repo_net', 0)
-    change, pct = calc_change(curr_net, prev_net)
-    
-    if change > 0:
-        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
-    elif change < 0:
-        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
-    else:
-        text += f"🔵 7天逆回购净投放：{format_amount(curr_net)}亿元（与昨日持平）\n"
-    
-    # 买断式逆回购
-    curr_out = current_stats['bona']['outstanding']
-    prev_out = prev.get('bona_outstanding', 0)
-    change, pct = calc_change(curr_out, prev_out)
-    
-    if change > 0:
-        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
-    elif change < 0:
-        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
-    else:
-        text += f"🟢 买断式逆回购存续：{format_amount(curr_out)}亿元（与昨日持平）\n"
-    
-    # MLF
-    curr_mlf = current_stats['mlf']['net']
-    prev_mlf = prev.get('mlf_net', 0)
-    change, pct = calc_change(curr_mlf, prev_mlf)
-    
-    if change > 0:
-        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（较昨日增加 {format_amount(abs(change))}亿元，+{pct:.1f}%）\n"
-    elif change < 0:
-        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（较昨日减少 {format_amount(abs(change))}亿元，{pct:.1f}%）\n"
-    else:
-        text += f"🟡 MLF净投放：{format_amount(curr_mlf)}亿元（与昨日持平）\n"
-    
-    text += f"\n📈 详细报告：https://dgguasa6622.github.io/market-liquidity-report/\n"
+    text += f"""
+
+【二、买断式逆回购（近24个月）】
+  当前存续量：{format_amount(bona['outstanding'])} 亿元
+  总投放量：{format_amount(bona['total_issue'])} 亿元
+  已到期量：{format_amount(bona['matured'])} 亿元"""
+
+    if yesterday in history:
+        prev = history[yesterday]
+        change, pct = calc_change(bona['outstanding'], prev.get('bona_outstanding', 0))
+        if change > 0:
+            text += f"\n  较昨日：增加 {format_amount(abs(change))} 亿元（+{pct:.1f}%）"
+        elif change < 0:
+            text += f"\n  较昨日：减少 {format_amount(abs(change))} 亿元（{pct:.1f}%）"
+        else:
+            text += "\n  较昨日：持平"
+
+    text += f"""
+
+【三、MLF 中期借贷便利（近24个月）】
+  净投放量：{format_amount(mlf['net'])} 亿元
+  总投放量：{format_amount(mlf['total_issue'])} 亿元
+  总到期量：{format_amount(mlf['matured'])} 亿元"""
+
+    if yesterday in history:
+        prev = history[yesterday]
+        change, pct = calc_change(mlf['net'], prev.get('mlf_net', 0))
+        if change > 0:
+            text += f"\n  较昨日：增加 {format_amount(abs(change))} 亿元（+{pct:.1f}%）"
+        elif change < 0:
+            text += f"\n  较昨日：减少 {format_amount(abs(change))} 亿元（{pct:.1f}%）"
+        else:
+            text += "\n  较昨日：持平"
+
+    text += f"""
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📈 在线查看完整报告（含图表）：
+   https://dgguasa6622.github.io/market-liquidity-report/
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+数据来源：中国人民银行官网（www.pbc.gov.cn）
+本邮件由 GitHub Actions 自动生成，仅供参考。
+"""
     return text
 
 # ===== 生成汇总卡片HTML（用于截图） =====
@@ -633,7 +663,7 @@ def generate_summary_card_html(repo_stats, bona_stats, mlf_stats):
 
 # ===== 发送邮件 =====
 def send_email(subject, body, image_path=None):
-    """发送邮件"""
+    """发送邮件（支持多个收件人，用逗号分隔）"""
     if not all([SMTP_USER, SMTP_PASS, EMAIL_TO]):
         print("[WARN] 邮件配置不完整，跳过发送邮件")
         return False
@@ -641,7 +671,10 @@ def send_email(subject, body, image_path=None):
     try:
         msg = MIMEMultipart()
         msg['From'] = SMTP_USER
-        msg['To'] = EMAIL_TO
+        
+        # 支持多个收件人（用逗号或分号分隔）
+        recipients = [addr.strip() for addr in EMAIL_TO.replace(';', ',').split(',') if addr.strip()]
+        msg['To'] = ', '.join(recipients)
         msg['Subject'] = subject
         
         # 添加文字内容
@@ -666,7 +699,7 @@ def send_email(subject, body, image_path=None):
         server.send_message(msg)
         server.quit()
         
-        print(f"[INFO] 邮件发送成功: {EMAIL_TO}")
+        print(f"[INFO] 邮件发送成功: {', '.join(recipients)}")
         return True
     except Exception as e:
         print(f"[ERROR] 邮件发送失败: {e}")
@@ -794,7 +827,7 @@ def generate_html(repo_records, bona_records, mlf_records):
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh; padding: 20px;
         }}
