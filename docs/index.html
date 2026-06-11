@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>市场流动性统计报告 - 2026-06-10</title>
+    <title>市场流动性统计报告 - 2026-06-11</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Microsoft YaHei', 'PingFang SC', 'Helvetica Neue', Arial, sans-serif;
+            font-family: 'Noto Sans CJK SC', 'WenQuanYi Micro Hei', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh; padding: 20px;
         }
@@ -106,7 +106,7 @@
         <div class="header">
             <h1>市场流动性统计报告</h1>
             <div class="subtitle">中国人民银行公开市场业务数据汇总</div>
-            <div class="date">统计日期：2026-06-10 | 数据自动更新</div>
+            <div class="date">统计日期：2026-06-11 | 数据自动更新</div>
         </div>
         <div class="content">
             <div class="summary-cards">
@@ -115,9 +115,9 @@
                     <div class="amount">7,455</div>
                     <div class="unit">亿元（近2个月）</div>
                     <div class="detail">
-                        总投放：24,782亿元<br>
-                        总到期：17,327亿元<br>
-                        操作次数：44次
+                        总投放：24,777亿元<br>
+                        总到期：17,322亿元<br>
+                        操作次数：43次
                     </div>
                 </div>
                 <div class="card">
@@ -149,16 +149,16 @@
                 </h2>
                 <div class="chart-container" id="repoChart"></div>
                 <div class="stats-grid">
-                    <div class="stat-box"><div class="number">44</div><div class="label">操作次数</div></div>
-                    <div class="stat-box"><div class="number">24,782</div><div class="label">总投放量（亿元）</div></div>
-                    <div class="stat-box"><div class="number">17,327</div><div class="label">总到期量（亿元）</div></div>
+                    <div class="stat-box"><div class="number">43</div><div class="label">操作次数</div></div>
+                    <div class="stat-box"><div class="number">24,777</div><div class="label">总投放量（亿元）</div></div>
+                    <div class="stat-box"><div class="number">17,322</div><div class="label">总到期量（亿元）</div></div>
                     <div class="stat-box"><div class="number">7,455</div><div class="label">净投放量（亿元）</div></div>
                 </div>
                 <table class="data-table">
                     <thead><tr><th>序号</th><th>操作日期</th><th>期限</th><th>操作利率</th><th>中标量（亿元）</th><th>到期日期</th><th>状态</th></tr></thead>
                     <tbody><tr>
             <td>1</td>
-            <td class="highlight">2026-06-10</td>
+            <td>2026-06-10</td>
             <td>7天</td>
             <td>1.40%</td>
             <td>1,590</td>
@@ -543,15 +543,6 @@
             <td>2026-04-17</td>
             <td><span class="badge badge-danger">已到期</span></td>
         </tr>
-<tr>
-            <td>44</td>
-            <td>2026-04-09</td>
-            <td>7天</td>
-            <td>1.40%</td>
-            <td>5</td>
-            <td>2026-04-16</td>
-            <td><span class="badge badge-danger">已到期</span></td>
-        </tr>
 </tbody>
                 </table>
             </div>
@@ -794,7 +785,7 @@
         </div>
         <div class="footer">
             <p>数据来源：中国人民银行官网（www.pbc.gov.cn）</p>
-            <p>统计时间：2026-06-10 | 本报告由GitHub Actions自动生成，仅供参考</p>
+            <p>统计时间：2026-06-11 | 本报告由GitHub Actions自动生成，仅供参考</p>
         </div>
     </div>
     
@@ -805,13 +796,13 @@
             tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
             legend: { data: ['操作量（亿元）', '累计净投放（亿元）'], top: 30 },
             grid: { left: '3%', right: '4%', bottom: '3%', top: 80, containLabel: true },
-            xAxis: { type: 'category', data: ["2026-04-09", "2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-09", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-25", "2026-05-26", "2026-05-27", "2026-05-27", "2026-05-28", "2026-05-29", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10"], axisLabel: { rotate: 45, fontSize: 11 } },
+            xAxis: { type: 'category', data: ["2026-04-10", "2026-04-13", "2026-04-14", "2026-04-15", "2026-04-16", "2026-04-17", "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-23", "2026-04-24", "2026-04-27", "2026-04-28", "2026-04-29", "2026-04-30", "2026-05-06", "2026-05-07", "2026-05-08", "2026-05-09", "2026-05-11", "2026-05-12", "2026-05-13", "2026-05-14", "2026-05-15", "2026-05-18", "2026-05-19", "2026-05-20", "2026-05-21", "2026-05-22", "2026-05-25", "2026-05-26", "2026-05-27", "2026-05-27", "2026-05-28", "2026-05-29", "2026-06-01", "2026-06-02", "2026-06-03", "2026-06-04", "2026-06-05", "2026-06-08", "2026-06-09", "2026-06-10"], axisLabel: { rotate: 45, fontSize: 11 } },
             yAxis: { type: 'value', name: '金额（亿元）', axisLabel: { formatter: '{value}' } },
             series: [
                 {
                     name: '操作量（亿元）',
                     type: 'bar',
-                    data: [5.0, 20.0, 5.0, 10.0, 5.0, 5.0, 5.0, 5.0, 50.0, 60.0, 5.0, 50.0, 2185.0, 435.0, 259.0, 1262.0, 260.0, 270.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 10.0, 5.0, 500.0, 1000.0, 1530.0, 2580.0, 2490.0, 150.0, 1776.0, 1013.0, 1230.0, 110.0, 2.0, 0, 0, 2150.0, 2185.0, 1530.0, 1590.0],
+                    data: [20.0, 5.0, 10.0, 5.0, 5.0, 5.0, 5.0, 50.0, 60.0, 5.0, 50.0, 2185.0, 435.0, 259.0, 1262.0, 260.0, 270.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 10.0, 5.0, 500.0, 1000.0, 1530.0, 2580.0, 2490.0, 150.0, 1776.0, 1013.0, 1230.0, 110.0, 2.0, 0, 0, 2150.0, 2185.0, 1530.0, 1590.0],
                     itemStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{offset: 0, color: '#4facfe'}, {offset: 1, color: '#00f2fe'}]) },
                     barWidth: '50%'
                 },
@@ -819,7 +810,7 @@
                     name: '累计净投放（亿元）',
                     type: 'line',
                     data: (function() {
-                        var data = [5.0, 20.0, 5.0, 10.0, 5.0, 5.0, 5.0, 5.0, 50.0, 60.0, 5.0, 50.0, 2185.0, 435.0, 259.0, 1262.0, 260.0, 270.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 10.0, 5.0, 500.0, 1000.0, 1530.0, 2580.0, 2490.0, 150.0, 1776.0, 1013.0, 1230.0, 110.0, 2.0, 0, 0, 2150.0, 2185.0, 1530.0, 1590.0];
+                        var data = [20.0, 5.0, 10.0, 5.0, 5.0, 5.0, 5.0, 50.0, 60.0, 5.0, 50.0, 2185.0, 435.0, 259.0, 1262.0, 260.0, 270.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 10.0, 5.0, 500.0, 1000.0, 1530.0, 2580.0, 2490.0, 150.0, 1776.0, 1013.0, 1230.0, 110.0, 2.0, 0, 0, 2150.0, 2185.0, 1530.0, 1590.0];
                         var cum = [];
                         var sum = 0;
                         for (var i = 0; i < data.length; i++) {
