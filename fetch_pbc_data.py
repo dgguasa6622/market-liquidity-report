@@ -760,6 +760,7 @@ def generate_html(repo_records, bona_records, mlf_records):
     mlf_stats = calc_stats(mlf_records, today_str)
     
     repo_dates, repo_amounts = prepare_chart_data(repo_records)
+    repo_dates, repo_net = prepare_net_chart_data(repo_records, today_str)
     bona_dates, bona_amounts = prepare_chart_data(bona_records)
     bona_dates, bona_outstanding = prepare_bona_chart_data(bona_records, today_str)
     mlf_dates, mlf_amounts = prepare_chart_data(mlf_records)
@@ -810,6 +811,7 @@ def generate_html(repo_records, bona_records, mlf_records):
     
     repo_dates_json = json.dumps(repo_dates, ensure_ascii=False)
     repo_amounts_json = json.dumps(repo_amounts, ensure_ascii=False)
+    repo_net_json = json.dumps(repo_net, ensure_ascii=False)
     bona_dates_json = json.dumps(bona_dates, ensure_ascii=False)
     bona_amounts_json = json.dumps(bona_amounts, ensure_ascii=False)
     bona_outstanding_json = json.dumps(bona_outstanding, ensure_ascii=False)
@@ -1041,16 +1043,7 @@ def generate_html(repo_records, bona_records, mlf_records):
                 {{
                     name: '累计净投放（亿元）',
                     type: 'line',
-                    data: (function() {{
-                        var data = {repo_amounts_json};
-                        var cum = [];
-                        var sum = 0;
-                        for (var i = 0; i < data.length; i++) {{
-                            sum += data[i];
-                            cum.push(sum);
-                        }}
-                        return cum;
-                    }})(),
+                    data: {repo_net_json},
                     smooth: true,
                     lineStyle: {{ color: '#e74c3c', width: 3 }},
                     itemStyle: {{ color: '#e74c3c' }},
