@@ -2,8 +2,8 @@ name: Update Market Liquidity Report
 
 on:
   schedule:
-    # 每天北京时间上午10:00执行（UTC 02:00），仅工作日
-    - cron: '0 2 * * 1-5'
+    # 每天北京时间上午9:45执行（UTC 01:45），仅工作日
+    - cron: '45 1 * * 1-5'
   workflow_dispatch:
     # 支持手动触发
 
