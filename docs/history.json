@@ -1,19 +1,4 @@
 {
-  "2026-07-29": {
-    "repo_net": 12065.0,
-    "bona_outstanding": 61000.0,
-    "mlf_net": 59000.0
-  },
-  "2026-07-30": {
-    "repo_net": 14010.0,
-    "bona_outstanding": 61000.0,
-    "mlf_net": 59000.0
-  },
-  "2026-07-31": {
-    "repo_net": 13310.0,
-    "bona_outstanding": 61000.0,
-    "mlf_net": 59000.0
-  },
   "2026-08-03": {
     "repo_net": 13050.0,
     "bona_outstanding": 61000.0,
@@ -111,6 +96,11 @@
   },
   "2026-08-28": {
     "repo_net": 11985.0,
+    "bona_outstanding": 63000.0,
+    "mlf_net": 64000.0
+  },
+  "2026-08-31": {
+    "repo_net": 11085.0,
     "bona_outstanding": 63000.0,
     "mlf_net": 64000.0
   }
