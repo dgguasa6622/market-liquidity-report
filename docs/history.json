@@ -1,9 +1,4 @@
 {
-  "2026-09-21": {
-    "repo_net": 9323.0,
-    "bona_outstanding": 63000.0,
-    "mlf_net": 64000.0
-  },
   "2026-09-22": {
     "repo_net": 9673.0,
     "bona_outstanding": 63000.0,
@@ -111,6 +106,11 @@
   },
   "2026-10-21": {
     "repo_net": 2410.0,
+    "bona_outstanding": 67000.0,
+    "mlf_net": 66000.0
+  },
+  "2026-10-22": {
+    "repo_net": 1850.0,
     "bona_outstanding": 67000.0,
     "mlf_net": 66000.0
   }
