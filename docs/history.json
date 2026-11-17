@@ -103,5 +103,10 @@
     "repo_net": 3000.0,
     "bona_outstanding": 64000.0,
     "mlf_net": 64000.0
+  },
+  "2026-11-17": {
+    "repo_net": 3000.0,
+    "bona_outstanding": 64000.0,
+    "mlf_net": 64000.0
   }
 }
